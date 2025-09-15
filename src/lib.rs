@@ -23,45 +23,43 @@ pub fn run() {
         .unwrap();
     let mut canvas = window.into_canvas();
 
-    let mut state = SimulationState::default();
+    let mut program_state = ProgramState::default();
+    let mut simulation_state = SimulationState::default();
 
-    let particles: Vec<Particle> = vec![
-        Particle {
-            position: Vec2::new(100.0, 300.0),
-            veloctiy: Vec2::default(),
-            acceleration: Vec2::default(),
-        },
-        Particle {
-            position: Vec2::new(200.0, 300.0),
-            veloctiy: Vec2::default(),
-            acceleration: Vec2::default(),
-        },
-        Particle {
-            position: Vec2::new(300.0, 300.0),
-            veloctiy: Vec2::default(),
-            acceleration: Vec2::default(),
-        },
-        Particle {
-            position: Vec2::new(400.0, 300.0),
-            veloctiy: Vec2::default(),
-            acceleration: Vec2::default(),
-        },
-    ];
+    let (tx, rx) = std::sync::mpsc::sync_channel::<Point>(3);
 
-    state.particles = particles;
+    std::thread::spawn(move || {
+        let mut i = 0u32;
+
+        'running: loop {
+            i += 1;
+            let i = (i % 250) as f32 / 250.0 * std::f32::consts::TAU;
+            let x = i.cos() * 250.0;
+            let y = i.sin() * 250.0;
+
+            let send_result = tx.send(Point {
+                position: Vec2::new(x, y),
+            });
+
+            if send_result.is_err() {
+                info!("assuming main dropped the receiver, goodbye from simulation thread");
+                break 'running; // if it was an error, its probably because main dropped the reciever, so exit cleanly
+            };
+
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    });
 
     'running: loop {
-        if state.should_quit {
+        if program_state.should_quit {
             break 'running;
         }
 
-        state.handle_events(event_pump.poll_iter());
-        state.render(&mut canvas);
-
-        for particle in state.particles.iter_mut() {
-            particle.acceleration = Vec2::new(0.01, 0.04);
-            particle.veloctiy += particle.acceleration;
-            particle.position += particle.veloctiy
+        program_state.handle_events(event_pump.poll_iter());
+        simulation_state.render(&mut canvas);
+        let new_point = rx.try_recv().ok();
+        if let Some(new_point) = new_point {
+            simulation_state.point = new_point
         }
     }
 
@@ -69,19 +67,21 @@ pub fn run() {
 }
 
 #[derive(Default)]
-struct SimulationState {
+struct ProgramState {
     should_quit: bool,
-    particles: Vec<Particle>,
+}
+
+#[derive(Default)]
+struct SimulationState {
+    point: Point,
 }
 
 #[derive(Default, Clone, Copy)]
-struct Particle {
+struct Point {
     position: Vec2,
-    veloctiy: Vec2,
-    acceleration: Vec2,
 }
 
-impl SimulationState {
+impl ProgramState {
     fn handle_events(&mut self, events: EventPollIterator) {
         for event in events {
             match event {
@@ -90,7 +90,9 @@ impl SimulationState {
             }
         }
     }
+}
 
+impl SimulationState {
     fn render(&self, canvas: &mut sdl3::render::Canvas<sdl3::video::Window>) {
         canvas.set_draw_color((000, 000, 000));
         canvas.clear();
@@ -109,16 +111,14 @@ impl SimulationState {
             })
             .unwrap();
 
-        for particle in self.particles.iter() {
-            canvas
-                .draw_rect(sdl3::render::FRect {
-                    x: particle.position.x - 1.0,
-                    y: particle.position.y - 1.0,
-                    w: 3.0,
-                    h: 3.0,
-                })
-                .unwrap();
-        }
+        canvas
+            .draw_rect(sdl3::render::FRect {
+                x: (self.point.position.x - 2.0) + canvas.output_size().unwrap().0 as f32 / 2.0,
+                y: (self.point.position.y - 2.0) + canvas.output_size().unwrap().1 as f32 / 2.0,
+                w: 5.0,
+                h: 5.0,
+            })
+            .unwrap();
 
         canvas.present();
 
