@@ -1,0 +1,8 @@
+[package]
+name = "n-body-2"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sdl3 = "0.15"
+wgpu = "26.0"
