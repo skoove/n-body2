@@ -6,6 +6,10 @@ use sdl3::{
     pixels::Color,
 };
 
+use math::Vec2;
+
+mod math;
+
 pub fn run() {
     let sdl3_context = sdl3::init().unwrap();
     let mut event_pump = sdl3_context.event_pump().unwrap();
@@ -21,15 +25,44 @@ pub fn run() {
 
     let mut state = SimulationState::default();
 
-    'running: loop {
-        state.i = (state.i + 1) % 255;
+    let particles: Vec<Particle> = vec![
+        Particle {
+            position: Vec2::new(100.0, 300.0),
+            veloctiy: Vec2::default(),
+            acceleration: Vec2::default(),
+        },
+        Particle {
+            position: Vec2::new(200.0, 300.0),
+            veloctiy: Vec2::default(),
+            acceleration: Vec2::default(),
+        },
+        Particle {
+            position: Vec2::new(300.0, 300.0),
+            veloctiy: Vec2::default(),
+            acceleration: Vec2::default(),
+        },
+        Particle {
+            position: Vec2::new(400.0, 300.0),
+            veloctiy: Vec2::default(),
+            acceleration: Vec2::default(),
+        },
+    ];
 
+    state.particles = particles;
+
+    'running: loop {
         if state.should_quit {
             break 'running;
         }
 
         state.handle_events(event_pump.poll_iter());
         state.render(&mut canvas);
+
+        for particle in state.particles.iter_mut() {
+            particle.acceleration = Vec2::new(0.01, 0.04);
+            particle.veloctiy += particle.acceleration;
+            particle.position += particle.veloctiy
+        }
     }
 
     info!("goodbye!")
@@ -38,7 +71,14 @@ pub fn run() {
 #[derive(Default)]
 struct SimulationState {
     should_quit: bool,
-    i: u8,
+    particles: Vec<Particle>,
+}
+
+#[derive(Default, Clone, Copy)]
+struct Particle {
+    position: Vec2,
+    veloctiy: Vec2,
+    acceleration: Vec2,
 }
 
 impl SimulationState {
@@ -52,9 +92,9 @@ impl SimulationState {
     }
 
     fn render(&self, canvas: &mut sdl3::render::Canvas<sdl3::video::Window>) {
-        canvas.set_draw_color(Color::RGB(self.i, 100, 255 - self.i));
+        canvas.set_draw_color((000, 000, 000));
         canvas.clear();
-        canvas.set_draw_color(Color::RGB(0, 255, 255));
+        canvas.set_draw_color(Color::RGB(255, 255, 255));
         let size = canvas.output_size().unwrap();
         let center_x = size.0 / 2;
         let center_y = size.1 / 2;
@@ -68,6 +108,18 @@ impl SimulationState {
                 h: rect_size,
             })
             .unwrap();
+
+        for particle in self.particles.iter() {
+            canvas
+                .draw_rect(sdl3::render::FRect {
+                    x: particle.position.x - 1.0,
+                    y: particle.position.y - 1.0,
+                    w: 3.0,
+                    h: 3.0,
+                })
+                .unwrap();
+        }
+
         canvas.present();
 
         std::thread::sleep(Duration::from_millis(8));
