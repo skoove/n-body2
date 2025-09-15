@@ -1,3 +1,9 @@
+#![warn(clippy::pedantic)]
+
+use log::info;
+
 fn main() {
-    println!("Hello, world!");
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+    info!("hello world");
 }
