@@ -1,10 +1,12 @@
+#![allow(clippy::new_without_default)]
+
 use std::{thread, time::Instant};
 
 use glam::Vec2;
-use log::info;
-use sdl3::event::{Event, EventPollIterator};
+use log::{error, info, warn};
+use sdl3::event::{Event, EventPollIterator, WindowEvent};
 
-use crate::render::{RenderInstruction, Renderer, sdl_software_renderer::SDLSoftwareRenderer};
+use crate::render::{RenderInstruction, wgpu_renderer::WGPURenderer};
 
 pub mod render;
 
@@ -14,15 +16,13 @@ pub fn run() {
     let window = sdl3_context
         .video()
         .unwrap()
-        .window("n-body-2", 1000, 1000)
+        .window("n-body-2", 700, 700)
         .resizable()
         .position_centered()
         .build()
         .unwrap();
 
-    let canvas = window.into_canvas();
-
-    let mut program_state = ProgramState::new(canvas);
+    let mut program_state = ProgramState::new(window);
 
     let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<RenderInstruction>>(0);
 
@@ -80,11 +80,21 @@ pub fn run() {
         }
 
         program_state.handle_events(event_pump.poll_iter());
+
         if let Ok(new_render_instructions) = rx.try_recv() {
             render_instructions = new_render_instructions;
         }
 
-        program_state.renderer.render(&render_instructions);
+        match program_state.renderer.render(&render_instructions) {
+            Ok(_) => {}
+            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                warn!("need to resize surface because idk was lost or something lmaoooo rip bozo");
+                program_state.renderer.resize();
+            }
+            Err(e) => {
+                error!("failed to render, rip bozo: {}", e)
+            }
+        };
     }
 
     info!("goodbye!")
@@ -92,14 +102,14 @@ pub fn run() {
 
 struct ProgramState {
     should_quit: bool,
-    renderer: SDLSoftwareRenderer,
+    renderer: WGPURenderer,
 }
 
 impl ProgramState {
-    fn new(canvas: sdl3::render::Canvas<sdl3::video::Window>) -> Self {
+    fn new(window: sdl3::video::Window) -> Self {
         Self {
             should_quit: false,
-            renderer: SDLSoftwareRenderer::new(canvas),
+            renderer: WGPURenderer::new(window),
         }
     }
 
@@ -121,6 +131,10 @@ impl ProgramState {
                 Event::MouseWheel { y, .. } => {
                     self.renderer.camera.scale += y * 0.5 * self.renderer.camera.scale
                 }
+                Event::Window {
+                    win_event: WindowEvent::Resized(_, _),
+                    ..
+                } => self.renderer.resize(),
                 _ => (),
             }
         }

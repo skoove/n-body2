@@ -1,25 +1,11 @@
 use glam::Vec2;
 use sdl3::render::FPoint;
 
-use crate::render::{RenderInstruction, Renderer};
+use crate::render::{Camera, RenderInstruction};
 
 pub struct SDLSoftwareRenderer {
     canvas: sdl3::render::Canvas<sdl3::video::Window>,
     pub camera: Camera,
-}
-
-pub struct Camera {
-    pub position: Vec2,
-    pub scale: f32,
-}
-
-impl Default for Camera {
-    fn default() -> Self {
-        Self {
-            position: Vec2::default(),
-            scale: 1.0,
-        }
-    }
 }
 
 impl SDLSoftwareRenderer {
@@ -39,9 +25,7 @@ impl SDLSoftwareRenderer {
 
         scaled + screen_center
     }
-}
 
-impl Renderer for SDLSoftwareRenderer {
     fn render(&mut self, instructions: &[RenderInstruction]) {
         self.canvas.set_draw_color((000, 000, 000));
         self.canvas.clear();

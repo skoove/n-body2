@@ -10,8 +10,16 @@ pub enum RenderInstruction {
     Circle { position: Vec2, radius: f32 },
 }
 
-/// A renderer is a struct that can take in a list of [`RenderInstruction`] and
-/// will draw a frame. For a simple example, see the [`SDLSoftwareRenderer`]
-pub trait Renderer {
-    fn render(&mut self, instructions: &[RenderInstruction]);
+pub struct Camera {
+    pub position: Vec2,
+    pub scale: f32,
+}
+
+impl Default for Camera {
+    fn default() -> Self {
+        Self {
+            position: Vec2::default(),
+            scale: 1.0,
+        }
+    }
 }

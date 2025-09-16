@@ -37,6 +37,7 @@
         ])
         clang
         pkg-config
+        wgsl-analyzer # lsp for wgsl
       ] ++ librarys;
 
       LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath librarys}";
