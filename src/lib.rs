@@ -1,14 +1,18 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use log::info;
+use log::{debug, info};
 use sdl3::{
     event::{Event, EventPollIterator},
+    mouse::MouseButton,
     pixels::Color,
 };
 
 use math::Vec2;
 
+use crate::render::{RenderInstruction, Renderer};
+
 mod math;
+mod render;
 
 pub fn run() {
     let sdl3_context = sdl3::init().unwrap();
@@ -21,107 +25,110 @@ pub fn run() {
         .position_centered()
         .build()
         .unwrap();
+
     let mut canvas = window.into_canvas();
 
-    let mut program_state = ProgramState::default();
-    let mut simulation_state = SimulationState::default();
+    let mut program_state = ProgramState::new(canvas);
 
-    let (tx, rx) = std::sync::mpsc::sync_channel::<Point>(3);
+    let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<RenderInstruction>>(0);
 
     std::thread::spawn(move || {
-        let mut i = 0u32;
+        let mut render_instructions: Vec<RenderInstruction> = vec![];
+
+        let mut last_time = Instant::now();
+
+        let mut angle = 0.0;
 
         'running: loop {
-            i += 1;
-            let i = (i % 250) as f32 / 250.0 * std::f32::consts::TAU;
-            let x = i.cos() * 250.0;
-            let y = i.sin() * 250.0;
+            let now = Instant::now();
+            let dt = (now - last_time).as_secs_f32();
+            last_time = now;
 
-            let send_result = tx.send(Point {
-                position: Vec2::new(x, y),
-            });
+            angle += dt * 2.0;
+            angle %= std::f32::consts::TAU;
 
+            let orbit_radius = 250.0;
+            let count = 100;
+
+            let pos = Vec2::new(angle.cos() * orbit_radius, angle.sin() * orbit_radius);
+
+            let mut positions = vec![];
+
+            for i in 0..count {
+                let offset = (i as f32 / count as f32) * std::f32::consts::TAU;
+                positions.push(Vec2::new(
+                    (angle + offset).cos() * orbit_radius,
+                    (angle + offset).sin() * orbit_radius,
+                ));
+            }
+
+            for pos in positions {
+                render_instructions.push(RenderInstruction::Circle {
+                    position: pos,
+                    radius: 100.0,
+                });
+            }
+
+            let send_result = tx.send(render_instructions.clone());
             if send_result.is_err() {
                 info!("assuming main dropped the receiver, goodbye from simulation thread");
                 break 'running; // if it was an error, its probably because main dropped the reciever, so exit cleanly
             };
 
-            std::thread::sleep(Duration::from_millis(100));
+            render_instructions.clear();
         }
     });
 
+    let mut render_instructions = vec![];
     'running: loop {
         if program_state.should_quit {
             break 'running;
         }
 
         program_state.handle_events(event_pump.poll_iter());
-        simulation_state.render(&mut canvas);
-        let new_point = rx.try_recv().ok();
-        if let Some(new_point) = new_point {
-            simulation_state.point = new_point
+        if let Ok(new_render_instructions) = rx.try_recv() {
+            render_instructions = new_render_instructions;
         }
+
+        program_state.renderer.render(&render_instructions);
     }
 
     info!("goodbye!")
 }
 
-#[derive(Default)]
 struct ProgramState {
     should_quit: bool,
-}
-
-#[derive(Default)]
-struct SimulationState {
-    point: Point,
-}
-
-#[derive(Default, Clone, Copy)]
-struct Point {
-    position: Vec2,
+    renderer: Renderer,
 }
 
 impl ProgramState {
+    fn new(canvas: sdl3::render::Canvas<sdl3::video::Window>) -> Self {
+        Self {
+            should_quit: false,
+            renderer: Renderer::new(canvas),
+        }
+    }
+
     fn handle_events(&mut self, events: EventPollIterator) {
         for event in events {
             match event {
                 Event::Quit { .. } => self.should_quit = true,
+                Event::MouseMotion {
+                    mousestate,
+                    xrel,
+                    yrel,
+                    ..
+                } => {
+                    if mousestate.right() {
+                        self.renderer.camera.position -=
+                            Vec2::new(xrel, yrel) / self.renderer.camera.scale
+                    }
+                }
+                Event::MouseWheel { y, .. } => {
+                    self.renderer.camera.scale += y * 0.5 * self.renderer.camera.scale
+                }
                 _ => (),
             }
         }
-    }
-}
-
-impl SimulationState {
-    fn render(&self, canvas: &mut sdl3::render::Canvas<sdl3::video::Window>) {
-        canvas.set_draw_color((000, 000, 000));
-        canvas.clear();
-        canvas.set_draw_color(Color::RGB(255, 255, 255));
-        let size = canvas.output_size().unwrap();
-        let center_x = size.0 / 2;
-        let center_y = size.1 / 2;
-        let rect_size = 200.0;
-
-        canvas
-            .draw_rect(sdl3::render::FRect {
-                x: center_x as f32 - (rect_size / 2.0),
-                y: center_y as f32 - (rect_size / 2.0),
-                w: rect_size,
-                h: rect_size,
-            })
-            .unwrap();
-
-        canvas
-            .draw_rect(sdl3::render::FRect {
-                x: (self.point.position.x - 2.0) + canvas.output_size().unwrap().0 as f32 / 2.0,
-                y: (self.point.position.y - 2.0) + canvas.output_size().unwrap().1 as f32 / 2.0,
-                w: 5.0,
-                h: 5.0,
-            })
-            .unwrap();
-
-        canvas.present();
-
-        std::thread::sleep(Duration::from_millis(8));
     }
 }
