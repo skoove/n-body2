@@ -21,7 +21,7 @@ pub struct Camera {
 impl Default for Camera {
     fn default() -> Self {
         Self {
-            position: Default::default(),
+            position: Vec2::default(),
             scale: 1.0,
         }
     }
