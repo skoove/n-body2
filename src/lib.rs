@@ -1,17 +1,11 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-use log::{debug, info};
-use sdl3::{
-    event::{Event, EventPollIterator},
-    mouse::MouseButton,
-    pixels::Color,
-};
-
-use math::Vec2;
+use glam::Vec2;
+use log::info;
+use sdl3::event::{Event, EventPollIterator};
 
 use crate::render::{RenderInstruction, Renderer};
 
-mod math;
 mod render;
 
 pub fn run() {
@@ -26,7 +20,7 @@ pub fn run() {
         .build()
         .unwrap();
 
-    let mut canvas = window.into_canvas();
+    let canvas = window.into_canvas();
 
     let mut program_state = ProgramState::new(canvas);
 
@@ -49,8 +43,6 @@ pub fn run() {
 
             let orbit_radius = 250.0;
             let count = 100;
-
-            let pos = Vec2::new(angle.cos() * orbit_radius, angle.sin() * orbit_radius);
 
             let mut positions = vec![];
 

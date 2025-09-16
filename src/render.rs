@@ -1,6 +1,5 @@
-use sdl3::render::{Canvas, FPoint};
-
-use crate::math::Vec2;
+use glam::Vec2;
+use sdl3::render::FPoint;
 
 /// Kinds of things the renderer can do, send these to the renderer and it will
 /// render them
