@@ -1,14 +1,9 @@
 use glam::Vec2;
 use sdl3::render::FPoint;
 
-/// Kinds of things the renderer can do, send these to the renderer and it will
-/// render them
-#[derive(Clone, Copy, Debug)]
-pub enum RenderInstruction {
-    Circle { position: Vec2, radius: f32 },
-}
+use crate::render::{RenderInstruction, Renderer};
 
-pub struct Renderer {
+pub struct SDLSoftwareRenderer {
     canvas: sdl3::render::Canvas<sdl3::video::Window>,
     pub camera: Camera,
 }
@@ -27,7 +22,7 @@ impl Default for Camera {
     }
 }
 
-impl Renderer {
+impl SDLSoftwareRenderer {
     pub fn new(canvas: sdl3::render::Canvas<sdl3::video::Window>) -> Self {
         Self {
             canvas,
@@ -35,7 +30,19 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self, instructions: &[RenderInstruction]) {
+    fn world_to_screen(&self, world_coord: Vec2) -> Vec2 {
+        let (w, h) = self.canvas.output_size().unwrap();
+        let screen_center = Vec2::new(w as f32 / 2.0, h as f32 / 2.0);
+
+        let translated = world_coord - self.camera.position;
+        let scaled = translated * self.camera.scale;
+
+        scaled + screen_center
+    }
+}
+
+impl Renderer for SDLSoftwareRenderer {
+    fn render(&mut self, instructions: &[RenderInstruction]) {
         self.canvas.set_draw_color((000, 000, 000));
         self.canvas.clear();
         self.canvas.set_draw_color((255, 255, 255));
@@ -65,15 +72,5 @@ impl Renderer {
         }
 
         self.canvas.present();
-    }
-
-    fn world_to_screen(&self, world_coord: Vec2) -> Vec2 {
-        let (w, h) = self.canvas.output_size().unwrap();
-        let screen_center = Vec2::new(w as f32 / 2.0, h as f32 / 2.0);
-
-        let translated = world_coord - self.camera.position;
-        let scaled = translated * self.camera.scale;
-
-        scaled + screen_center
     }
 }

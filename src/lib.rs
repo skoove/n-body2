@@ -1,12 +1,12 @@
-use std::time::Instant;
+use std::{thread, time::Instant};
 
 use glam::Vec2;
 use log::info;
 use sdl3::event::{Event, EventPollIterator};
 
-use crate::render::{RenderInstruction, Renderer};
+use crate::render::{RenderInstruction, Renderer, sdl_software_renderer::SDLSoftwareRenderer};
 
-mod render;
+pub mod render;
 
 pub fn run() {
     let sdl3_context = sdl3::init().unwrap();
@@ -42,7 +42,7 @@ pub fn run() {
             angle %= std::f32::consts::TAU;
 
             let orbit_radius = 250.0;
-            let count = 100;
+            let count = 5;
 
             let mut positions = vec![];
 
@@ -57,7 +57,7 @@ pub fn run() {
             for pos in positions {
                 render_instructions.push(RenderInstruction::Circle {
                     position: pos,
-                    radius: 100.0,
+                    radius: 50.0,
                 });
             }
 
@@ -68,6 +68,8 @@ pub fn run() {
             };
 
             render_instructions.clear();
+
+            thread::sleep(std::time::Duration::from_millis(100));
         }
     });
 
@@ -90,14 +92,14 @@ pub fn run() {
 
 struct ProgramState {
     should_quit: bool,
-    renderer: Renderer,
+    renderer: SDLSoftwareRenderer,
 }
 
 impl ProgramState {
     fn new(canvas: sdl3::render::Canvas<sdl3::video::Window>) -> Self {
         Self {
             should_quit: false,
-            renderer: Renderer::new(canvas),
+            renderer: SDLSoftwareRenderer::new(canvas),
         }
     }
 
