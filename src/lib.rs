@@ -87,8 +87,6 @@ pub fn run() {
         program_state.delta_time = (now - last_now).as_secs_f64();
         last_now = now;
 
-        error!("dt: {}", 1.0 / program_state.delta_time);
-
         program_state.handle_events(event_pump.poll_iter());
 
         if let Ok(new_render_instructions) = rx.try_recv() {
