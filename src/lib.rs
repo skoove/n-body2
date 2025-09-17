@@ -1,9 +1,10 @@
 #![allow(clippy::new_without_default)]
+#![allow(clippy::needless_return)]
 
 use std::{thread, time::Instant};
 
 use glam::Vec2;
-use log::{error, info, warn};
+use log::{error, info};
 use sdl3::event::{Event, EventPollIterator, WindowEvent};
 
 use crate::render::{RenderInstruction, wgpu_renderer::WGPURenderer};
@@ -74,10 +75,19 @@ pub fn run() {
     });
 
     let mut render_instructions = vec![];
+
+    let mut last_now = Instant::now();
+
     'running: loop {
         if program_state.should_quit {
             break 'running;
         }
+
+        let now = Instant::now();
+        program_state.delta_time = (now - last_now).as_secs_f64();
+        last_now = now;
+
+        error!("dt: {}", 1.0 / program_state.delta_time);
 
         program_state.handle_events(event_pump.poll_iter());
 
@@ -88,7 +98,6 @@ pub fn run() {
         match program_state.renderer.render(&render_instructions) {
             Ok(_) => {}
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                warn!("need to resize surface because idk was lost or something lmaoooo rip bozo");
                 program_state.renderer.resize();
             }
             Err(e) => {
@@ -103,6 +112,7 @@ pub fn run() {
 struct ProgramState {
     should_quit: bool,
     renderer: WGPURenderer,
+    delta_time: f64,
 }
 
 impl ProgramState {
@@ -110,6 +120,7 @@ impl ProgramState {
         Self {
             should_quit: false,
             renderer: WGPURenderer::new(window),
+            delta_time: 0.0,
         }
     }
 
@@ -124,13 +135,20 @@ impl ProgramState {
                     ..
                 } => {
                     if mousestate.right() {
-                        self.renderer.camera.position -=
-                            Vec2::new(xrel, yrel) / self.renderer.camera.scale
+                        self.renderer.camera.position +=
+                            Vec2::new(xrel, -yrel) * self.renderer.camera.scale; // flip y, i dont know y, ahayuhahahahahahahahaa
                     }
                 }
-                Event::MouseWheel { y, .. } => {
-                    self.renderer.camera.scale += y * 0.5 * self.renderer.camera.scale
+                Event::MouseWheel {
+                    y,
+                    mouse_x,
+                    mouse_y,
+                    ..
+                } => {
+                    self.renderer.camera.scale -= y * 0.5 * self.renderer.camera.scale;
+                    self.renderer.camera.scale = self.renderer.camera.scale.max(0.01);
                 }
+
                 Event::Window {
                     win_event: WindowEvent::Resized(_, _),
                     ..

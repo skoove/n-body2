@@ -1,4 +1,5 @@
 use glam::Vec2;
+use wgpu::util::DeviceExt;
 
 use crate::render::{Camera, RenderInstruction, wgpu_renderer::create_surface::create_surface};
 
@@ -10,8 +11,9 @@ pub struct WGPURenderer {
     window: sdl3::video::Window,
     surface_config: wgpu::SurfaceConfiguration,
     pub surface_configured: bool,
-
     pub camera: Camera,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
 }
 
 impl WGPURenderer {
@@ -32,6 +34,10 @@ impl WGPURenderer {
                 label: Some("render encoder"),
             });
 
+        // update camera buffer
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera]));
+
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("render pass"),
@@ -50,6 +56,7 @@ impl WGPURenderer {
             });
 
             render_pass.set_pipeline(&self.circle_pipeline);
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.draw(0..3, 0..1);
         }
 
@@ -71,6 +78,8 @@ impl WGPURenderer {
         self.surface_config.height = height;
         self.surface.configure(&self.device, &self.surface_config);
         self.surface_configured = true;
+
+        (self.camera.x, self.camera.y) = (width as u16, height as u16)
     }
 
     pub fn new(window: sdl3::video::Window) -> Self {
@@ -128,7 +137,47 @@ impl WGPURenderer {
             view_formats: vec![],
         };
 
-        let circle_pipeline = Self::create_circle_pipeline(&device, &surface_config);
+        let camera = Camera {
+            position: Vec2::ZERO,
+            scale: 0.1,
+            x: width as u16,
+            y: height as u16,
+        };
+
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("view buffer"),
+            contents: bytemuck::cast_slice(&[camera]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("camera bind group layout"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("camera bind group"),
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
+
+        surface.configure(&device, &surface_config);
+
+        let circle_pipeline =
+            Self::create_circle_pipeline(&device, &surface_config, &camera_bind_group_layout);
 
         Self {
             surface,
@@ -138,21 +187,23 @@ impl WGPURenderer {
             surface_config,
             window: window.clone(),
             surface_configured: false,
-
-            camera: Camera::default(),
+            camera,
+            camera_buffer,
+            camera_bind_group,
         }
     }
 
     fn create_circle_pipeline(
         device: &wgpu::Device,
         surface_config: &wgpu::SurfaceConfiguration,
+        camera_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> wgpu::RenderPipeline {
         let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/circle.wgsl"));
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("circle pipeline layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
