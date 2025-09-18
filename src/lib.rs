@@ -146,15 +146,6 @@ impl ProgramState {
 
                     let after_coords = self.renderer.camera.cursor_to_world_coords(cursor_coords);
                     self.renderer.camera.position += before_coords - after_coords;
-
-                    println!("scale: {}", self.renderer.camera.scale);
-                    println!("mouse coords: {:?}", [mouse_x, mouse_y]);
-                    println!(
-                        "'world' coords: {}",
-                        self.renderer
-                            .camera
-                            .cursor_to_world_coords((mouse_x, mouse_y))
-                    );
                 }
 
                 Event::Window {
