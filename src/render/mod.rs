@@ -12,8 +12,8 @@ pub enum RenderInstruction {
 pub struct Camera {
     pub position: Vec2,
     pub scale: f32,
-    pub x: u16,
-    pub y: u16,
+    x: u16,
+    y: u16,
 }
 
 unsafe impl Pod for Camera {}
@@ -58,7 +58,10 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn render(&mut self, instructions: &[RenderInstruction]) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(
+        &mut self,
+        _instructions: &[RenderInstruction],
+    ) -> Result<(), wgpu::SurfaceError> {
         if !self.surface_configured {
             return Ok(());
         }
@@ -123,7 +126,7 @@ impl Renderer {
         (self.camera.x, self.camera.y) = (width as u16, height as u16)
     }
 
-    pub fn new(window: sdl3::video::Window) -> Self {
+    pub async fn new(window: sdl3::video::Window) -> Self {
         let (width, height) = window.size();
 
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
@@ -138,26 +141,27 @@ impl Renderer {
         let window: &'static sdl3::video::Window = Box::leak(Box::new(window.clone()));
 
         let surface =
-            create_surface::create_surface(&instance, &window).expect("failed to create surface");
+            create_surface::create_surface(&instance, window).expect("failed to create surface");
 
-        let adapter_future = instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            compatible_surface: Some(&surface),
-            force_fallback_adapter: false,
-        });
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            })
+            .await
+            .expect("failed to get an adapter, good luck fixing this!");
 
-        let adapter = pollster::block_on((|| adapter_future)()).expect("failed to get an adapter");
-
-        let device_queue_future = adapter.request_device(&wgpu::DeviceDescriptor {
-            label: None,
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::defaults(),
-            memory_hints: wgpu::MemoryHints::Performance,
-            trace: wgpu::Trace::Off,
-        });
-
-        let (device, queue) =
-            pollster::block_on((|| device_queue_future)()).expect("failed to get device and queue");
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor {
+                label: None,
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::defaults(),
+                memory_hints: wgpu::MemoryHints::Performance,
+                trace: wgpu::Trace::Off,
+            })
+            .await
+            .expect("failed to get device and queue, good luck fixing this one!");
 
         let surface_capabilities = surface.get_capabilities(&adapter);
 
@@ -316,7 +320,7 @@ mod create_surface {
         window: &'a Window,
     ) -> Result<wgpu::Surface<'a>, String> {
         instance
-            .create_surface(SyncWindow(&window))
+            .create_surface(SyncWindow(window))
             .map_err(|err| err.to_string())
     }
 }

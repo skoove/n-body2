@@ -5,10 +5,7 @@ use std::{thread, time::Instant};
 
 use glam::Vec2;
 use log::{error, info};
-use sdl3::{
-    event::{Event, EventPollIterator, WindowEvent},
-    libc::KERN_PRINTK_RATELIMIT,
-};
+use sdl3::event::{Event, EventPollIterator, WindowEvent};
 
 use crate::render::{RenderInstruction, Renderer};
 
@@ -119,7 +116,7 @@ impl ProgramState {
     fn new(window: sdl3::video::Window) -> Self {
         Self {
             should_quit: false,
-            renderer: Renderer::new(window),
+            renderer: pollster::block_on(Renderer::new(window)),
             delta_time: 0.0,
         }
     }
