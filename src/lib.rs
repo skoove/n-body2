@@ -7,7 +7,7 @@ use glam::Vec2;
 use log::{error, info};
 use sdl3::event::{Event, EventPollIterator, WindowEvent};
 
-use crate::render::{RenderInstruction, Renderer};
+use crate::render::{RenderCommands, Renderer};
 
 pub mod render;
 
@@ -24,10 +24,10 @@ pub fn run() {
 
     let mut program_state = ProgramState::new(window);
 
-    let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<RenderInstruction>>(0);
+    let (tx, rx) = std::sync::mpsc::sync_channel::<RenderCommands>(0);
 
     std::thread::spawn(move || {
-        let mut render_instructions: Vec<RenderInstruction> = vec![];
+        let mut render_commands = RenderCommands::new();
 
         let mut last_time = Instant::now();
 
@@ -55,25 +55,22 @@ pub fn run() {
             }
 
             for pos in positions {
-                render_instructions.push(RenderInstruction::Circle {
-                    position: pos,
-                    radius: 50.0,
-                });
+                render_commands.draw_circle(pos, 50.0);
             }
 
-            let send_result = tx.send(render_instructions.clone());
+            let send_result = tx.send(render_commands.clone());
             if send_result.is_err() {
                 info!("assuming main dropped the receiver, goodbye from simulation thread");
                 break 'running; // if it was an error, its probably because main dropped the reciever, so exit cleanly
             };
 
-            render_instructions.clear();
+            render_commands.clear();
 
             thread::sleep(std::time::Duration::from_millis(100));
         }
     });
 
-    let mut render_instructions = vec![];
+    let mut render_commands = RenderCommands::new();
 
     let mut last_now = Instant::now();
     'running: loop {
@@ -87,11 +84,11 @@ pub fn run() {
 
         program_state.handle_events(event_pump.poll_iter());
 
-        if let Ok(new_render_instructions) = rx.try_recv() {
-            render_instructions = new_render_instructions;
+        if let Ok(new_render_commands) = rx.try_recv() {
+            render_commands = new_render_commands;
         }
 
-        match program_state.renderer.render(&render_instructions) {
+        match program_state.renderer.render(&render_commands) {
             Ok(_) => {}
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                 program_state.renderer.resize();

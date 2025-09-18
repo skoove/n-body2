@@ -2,10 +2,21 @@ use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
 use wgpu::util::DeviceExt;
 
+#[repr(C)]
 #[derive(Clone, Copy, Debug)]
-pub enum RenderInstruction {
-    Circle { position: Vec2, radius: f32 },
+pub struct Circle {
+    position: Vec2,
+    radius: f32,
 }
+
+impl Circle {
+    pub fn new(position: Vec2, radius: f32) -> Self {
+        Self { position, radius }
+    }
+}
+
+unsafe impl Pod for Circle {}
+unsafe impl Zeroable for Circle {}
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -18,6 +29,35 @@ pub struct Camera {
 
 unsafe impl Pod for Camera {}
 unsafe impl Zeroable for Camera {}
+
+/// This struct contains all the information to draw something on the screen,
+/// give this to the [`Renderer`]'s render method to render it
+#[derive(Clone, Debug)]
+pub struct RenderCommands {
+    circles: Vec<Circle>,
+}
+
+impl RenderCommands {
+    pub fn new() -> Self {
+        Self { circles: vec![] }
+    }
+
+    /// Remove all render commands, you should do this instead of making a new
+    /// [`RenderCommands`] on each simulation update
+    pub fn clear(&mut self) {
+        self.circles.clear();
+    }
+
+    /// Add a circle with a position and radius to the render commands
+    pub fn draw_circle(&mut self, position: Vec2, radius: f32) {
+        self.circles.push(Circle::new(position, radius));
+    }
+
+    /// Add multiple circles with a position and radius to the render commands
+    pub fn draw_circles(&mut self, circles: &[Circle]) {
+        self.circles.extend(circles);
+    }
+}
 
 impl Camera {
     pub fn cursor_to_world_coords(&self, cursor_coords: impl Into<Vec2>) -> Vec2 {
@@ -58,10 +98,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn render(
-        &mut self,
-        _instructions: &[RenderInstruction],
-    ) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, _render_commands: &RenderCommands) -> Result<(), wgpu::SurfaceError> {
         if !self.surface_configured {
             return Ok(());
         }
