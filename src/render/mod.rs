@@ -22,6 +22,7 @@ unsafe impl Zeroable for Camera {}
 impl Camera {
     pub fn cursor_to_world_coords(&self, cursor_coords: impl Into<Vec2>) -> Vec2 {
         let cursor_coords: Vec2 = cursor_coords.into();
+
         let offset = Vec2 {
             x: self.screen_center().x - cursor_coords.x,
             y: cursor_coords.y - self.screen_center().y,
