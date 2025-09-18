@@ -7,7 +7,7 @@ use glam::Vec2;
 use log::{error, info};
 use sdl3::event::{Event, EventPollIterator, WindowEvent};
 
-use crate::render::{RenderInstruction, wgpu_renderer::WGPURenderer};
+use crate::render::{RenderInstruction, Renderer};
 
 pub mod render;
 
@@ -109,7 +109,7 @@ pub fn run() {
 
 struct ProgramState {
     should_quit: bool,
-    renderer: WGPURenderer,
+    renderer: Renderer,
     delta_time: f64,
 }
 
@@ -117,7 +117,7 @@ impl ProgramState {
     fn new(window: sdl3::video::Window) -> Self {
         Self {
             should_quit: false,
-            renderer: WGPURenderer::new(window),
+            renderer: Renderer::new(window),
             delta_time: 0.0,
         }
     }
