@@ -22,6 +22,7 @@
       wayland
       libxkbcommon
       vulkan-loader
+      vulkan-caps-viewer
       sdl3
     ];
   in {
