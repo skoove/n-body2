@@ -5,7 +5,10 @@ use std::{thread, time::Instant};
 
 use glam::Vec2;
 use log::{error, info};
-use sdl3::event::{Event, EventPollIterator, WindowEvent};
+use sdl3::{
+    event::{Event, EventPollIterator, WindowEvent},
+    libc::KERN_PRINTK_RATELIMIT,
+};
 
 use crate::render::{RenderInstruction, Renderer};
 
@@ -77,7 +80,6 @@ pub fn run() {
     let mut render_instructions = vec![];
 
     let mut last_now = Instant::now();
-
     'running: loop {
         if program_state.should_quit {
             break 'running;
@@ -134,7 +136,7 @@ impl ProgramState {
                 } => {
                     if mousestate.right() {
                         self.renderer.camera.position +=
-                            Vec2::new(xrel, -yrel) * self.renderer.camera.scale; // flip y, i dont know y, ahayuhahahahahahahahaa
+                            Vec2::new(xrel, -yrel) * self.renderer.camera.scale; // flip y, i dont know y, ahayuhahahahahahahahaa (i do actually, its because y increases as you go down, which is opposite to how it normally is)
                     }
                 }
                 Event::MouseWheel {
@@ -143,8 +145,23 @@ impl ProgramState {
                     mouse_y,
                     ..
                 } => {
+                    let cursor_coords = Vec2::new(mouse_x, mouse_y);
+                    let before_coords = self.renderer.camera.cursor_to_world_coords(cursor_coords);
+
                     self.renderer.camera.scale -= y * 0.5 * self.renderer.camera.scale;
                     self.renderer.camera.scale = self.renderer.camera.scale.max(0.01);
+
+                    let after_coords = self.renderer.camera.cursor_to_world_coords(cursor_coords);
+                    self.renderer.camera.position += before_coords - after_coords;
+
+                    println!("scale: {}", self.renderer.camera.scale);
+                    println!("mouse coords: {:?}", [mouse_x, mouse_y]);
+                    println!(
+                        "'world' coords: {}",
+                        self.renderer
+                            .camera
+                            .cursor_to_world_coords((mouse_x, mouse_y))
+                    );
                 }
 
                 Event::Window {

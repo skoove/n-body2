@@ -19,6 +19,30 @@ pub struct Camera {
 unsafe impl Pod for Camera {}
 unsafe impl Zeroable for Camera {}
 
+impl Camera {
+    pub fn cursor_to_world_coords(&self, cursor_coords: impl Into<Vec2>) -> Vec2 {
+        let cursor_coords: Vec2 = cursor_coords.into();
+        let offset = Vec2 {
+            x: self.screen_center().x - cursor_coords.x,
+            y: cursor_coords.y - self.screen_center().y,
+        };
+
+        offset * self.scale + self.position
+    }
+
+    /// Returns the center of of the window, in screen space, where it starts at top left. This is the space used by cursor events.
+    pub fn screen_center(&self) -> Vec2 {
+        self.screen_size() / 2.0
+    }
+
+    /// Returns the screen size as a [`Vec2`], you could always use the x and y
+    /// components if you do not want floating point values, but for most vector math
+    /// you will want this :)
+    pub fn screen_size(&self) -> Vec2 {
+        Vec2::new(self.x as f32, self.y as f32)
+    }
+}
+
 pub struct Renderer {
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
