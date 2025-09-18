@@ -17,9 +17,8 @@ pub fn run() {
     let window = sdl3_context
         .video()
         .unwrap()
-        .window("n-body-2", 700, 700)
+        .window("n-body-2", 1200, 1000)
         .resizable()
-        .position_centered()
         .build()
         .unwrap();
 
