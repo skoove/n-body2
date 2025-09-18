@@ -133,7 +133,7 @@ impl WGPURenderer {
             height,
             present_mode: wgpu::PresentMode::AutoNoVsync,
             desired_maximum_frame_latency: 2,
-            alpha_mode: wgpu::CompositeAlphaMode::Inherit,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![],
         };
 
