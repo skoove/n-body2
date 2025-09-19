@@ -7,9 +7,7 @@ use glam::Vec2;
 use log::{error, info};
 use sdl3::event::{Event, EventPollIterator, WindowEvent};
 
-use crate::render::{RenderCommands, Renderer};
-
-pub mod render;
+use dust_bunny::{RenderCommands, Renderer};
 
 pub fn run() {
     let sdl3_context = sdl3::init().unwrap();

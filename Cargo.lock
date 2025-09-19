@@ -219,6 +219,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dust_bunny"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "log",
+ "pollster",
+ "sdl3",
+ "wgpu",
+]
+
+[[package]]
 name = "env_filter"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -553,6 +565,7 @@ name = "n-body-2"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "dust_bunny",
  "env_logger",
  "glam",
  "log",
